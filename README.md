@@ -1,3 +1,5 @@
+<img src="./assets/Icon.png" width="150">
+
 # WORK IN PROGRESS _ NO GUARANTEE THAT IT WORKS ON YOUR PHONE
 
 When you have several LoRa P2P or LoRaWAN nodes with identical firmware a feature to configure the nodes in the field is required. Otherwise you would have to compile the firmware several times with the different configurations.
@@ -41,10 +43,14 @@ If you want to compile the Android app by yourself, you can find the source code
 - Enter Application EUI
 - Enter Application Key
 
+<center><img src="./assets/large-7.jpg" width="200"></center>
+
 #### LoRaWAN ABP settings
 - Enter Device Address
 - Enter Network Session Key
 - Enter Application Session Key
+
+<center><img src="./assets/large-9.jpg" width="200"></center>
 
 ### LoRa P2P settings
 - Select frequency for sending
@@ -55,6 +61,8 @@ If you want to compile the Android app by yourself, you can find the source code
 - Set preamble length
 - set symbol timeout
 
+<center><img src="./assets/large-8.jpg" width="200"></center>
+
 ## Tests
 Android application is tested on
 - Huawei Mediapad M5 tablet, Android V9
@@ -63,3 +71,6 @@ Android application is tested on
 
 nRF52 firmware is tested on
 - WisBlock Core RAK4631
+
+## Screenshots
+<img src="./assets/large-1.jpg" width="150">&nbsp;<img src="./assets/large-2.jpg" width="150">&nbsp;<img src="./assets/large-10.jpg" width="150">
