@@ -1,6 +1,7 @@
-<img src="./assets/Icon.png" width="150">
-
-# WORK IN PROGRESS _ NO GUARANTEE THAT IT WORKS ON YOUR PHONE
+|   |   |   |
+| :-: | :-: | :-: |
+| <img src="./assets/rakstar.jpg" width="150"> | <img src="./assets/Icon.png" width="150"> | <img src="./assets/RAK-Whirls.png" width="150"> |
+# WORK IN PROGRESS => NO GUARANTEE THAT IT WORKS ON YOUR PHONE
 
 When you have several LoRa P2P or LoRaWAN nodes with identical firmware a feature to configure the nodes in the field is required. Otherwise you would have to compile the firmware several times with the different configurations.
 
@@ -18,6 +19,15 @@ Android phone or tablet
 Android application [My nRF52 Toolbox](https://play.google.com/store/apps/details?id=tk.giesecke.my_nrf52_tb)    
 
 If you want to compile the Android app by yourself, you can find the source code on [Github](https://github.com/beegee-tokyo/My-nRF52-Toolbox).
+
+## PLEASE READ FIRST
+- If you flash this example the first time, there are no LoRaWAN parameters saved in the Flash memory and everything is set to some default values.      
+Before your device can use LoRa P2P or connect to a LoRaWAN server you have to connect with [My nRF52 Toolbox](https://play.google.com/store/apps/details?id=tk.giesecke.my_nrf52_tb), enter the parameters for your node and save them on the device.  
+- The device will not start LoRa P2P communication or connect to a LoRaWAN server until you check the _**Auto Join**_ checkbox in the Android application
+- If _**Auto Join**_ is enabled, the node will connect and send a dummy packet (_**HELLO**_) in the specified frequency. You can set the frequency with the _**Send Repeat Time (s)**_ option.
+- The Android app testing is not finished and there are problems with some phones that cannot find the RAK4631 nodes. I am working to solve this problem, but I am depending on Nordic's nRF52 Android libraries.    
+- LoRaWAN settings and parameters are only checked for general validity, but not if they are matching with your Region Specification
+- LoRaWAN region cannot be changed (_**yet**_) with this app. The LoRaWAN region still needs to be selected during compilation!
 
 ## Configurable parameters
 ### General settings
@@ -63,6 +73,73 @@ If you want to compile the Android app by yourself, you can find the source code
 
 <center><img src="./assets/large-8.jpg" width="200"></center>
 
+## Structure of the saved settings
+The settings are stored in a structure and saved in the flash as binary data. The data structure looks like:  
+```cpp
+struct s_lorawan_settings
+{
+	uint8_t valid_mark_1 = 0xAA; // Just a marker for the Flash
+	uint8_t valid_mark_2 = 0x55; // Just a marker for the Flash
+								 // OTAA Device EUI MSB
+	uint8_t node_device_eui[8] = {0x00, 0x0D, 0x75, 0xE6, 0x56, 0x4D, 0xC1, 0xF3};
+	// OTAA Application EUI MSB
+	uint8_t node_app_eui[8] = {0x70, 0xB3, 0xD5, 0x7E, 0xD0, 0x02, 0x01, 0xE1};
+	// OTAA Application Key MSB
+	uint8_t node_app_key[16] = {0x2B, 0x84, 0xE0, 0xB0, 0x9B, 0x68, 0xE5, 0xCB, 0x42, 0x17, 0x6F, 0xE7, 0x53, 0xDC, 0xEE, 0x79};
+	// ABP Device Address MSB
+	uint32_t node_dev_addr = 0x26021FB4;
+	// ABP Network Session Key MSB
+	uint8_t node_nws_key[16] = {0x32, 0x3D, 0x15, 0x5A, 0x00, 0x0D, 0xF3, 0x35, 0x30, 0x7A, 0x16, 0xDA, 0x0C, 0x9D, 0xF5, 0x3F};
+	// ABP Application Session key MSB
+	uint8_t node_apps_key[16] = {0x3F, 0x6A, 0x66, 0x45, 0x9D, 0x5E, 0xDC, 0xA6, 0x3C, 0xBC, 0x46, 0x19, 0xCD, 0x61, 0xA1, 0x1E};
+	// Flag for OTAA or ABP
+	bool otaa_enabled = true;
+	// Flag for ADR on or off
+	bool adr_enabled = false;
+	// Flag for public or private network
+	bool public_network = true;
+	// Flag to enable duty cycle
+	bool duty_cycle_enabled = false;
+	// In milliseconds: 2 * 60 * 1000 => 2 minutes
+	uint32_t send_repeat_time = 120000;
+	// Number of join retries
+	uint8_t join_trials = 5;
+	// TX power 0 .. 22
+	uint8_t tx_power = 22;
+	// Data rate 0 .. 15 (validity depnends on Region)
+	uint8_t data_rate = 3;
+	// LoRaWAN class 0: A, 2: C, 1: B is not supported
+	uint8_t lora_class = 0;
+	// Subband channel selection 1 .. 9
+	uint8_t subband_channels = 1;
+	// Flag if node joins automatically after reboot
+	bool auto_join = false;
+	// Data port to send data
+	uint8_t app_port = 2;
+	// Flag to enable confirmed messages
+	lmh_confirm confirmed_msg_enabled = LMH_UNCONFIRMED_MSG;
+	// Fixed LoRaWAN lorawan_region (depends on compiler option)
+	uint8_t lorawan_region = 1;
+	// Flag for LoRaWAN or LoRa P2P
+	bool lorawan_enable = true;
+	// Frequency in Hz
+	uint32_t p2p_frequency = 923300000;
+	// Tx power 0 .. 22
+	uint8_t p2p_tx_power = 22;
+	// Bandwidth 0: 125 kHz, 1: 250 kHz, 2: 500 kHz, 3: Reserved
+	uint8_t p2p_bandwidth = 0;
+	// Spreading Factor SF7..SF12
+	uint8_t p2p_sf = 7;
+	// Coding Rate 1: 4/5, 2: 4/6, 3: 4/7, 4: 4/8
+	uint8_t p2p_cr = 1;
+	// Preamble length
+	uint8_t p2p_preamble_len = 8;
+	// Symbol timeout
+	uint16_t p2p_symbol_timeout = 0;
+	// Command from BLE to reset device
+	bool resetRequest = true;
+};
+```
 ## Tests
 Android application is tested on
 - Huawei Mediapad M5 tablet, Android V9

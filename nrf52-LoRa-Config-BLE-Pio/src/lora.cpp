@@ -18,7 +18,7 @@
 s_lorawan_settings g_lorawan_settings;
 
 /** Semaphore used by SX126x IRQ handler to wake up LoRaWAN task */
-SemaphoreHandle_t lora_sem = NULL;
+static SemaphoreHandle_t lora_sem = NULL;
 
 /** LoRa task handle */
 TaskHandle_t loraTaskHandle;
@@ -147,8 +147,6 @@ int8_t init_lora(void)
 		lora_param_init.tx_power = g_lorawan_settings.tx_power;
 		lora_param_init.duty_cycle = g_lorawan_settings.duty_cycle_enabled;
 
-		lora_param_init = {LORAWAN_ADR_OFF, DR_3, LORAWAN_PUBLIC_NETWORK, 5, LORAWAN_DEFAULT_TX_POWER, LORAWAN_DUTYCYCLE_ON};
-
 		// Initialize LoRaWan
 		if (lmh_init(&lora_callbacks, lora_param_init, g_lorawan_settings.otaa_enabled) != 0)
 		{
@@ -158,14 +156,11 @@ int8_t init_lora(void)
 
 		// For some regions we might need to define the sub band the gateway is listening to
 		// This must be called AFTER lmh_init()
-    if (!lmh_setSubBandChannels(g_lorawan_settings.subband_channels))
+		if (!lmh_setSubBandChannels(g_lorawan_settings.subband_channels))
 		{
 			myLog_e("lmh_setSubBandChannels failed. Wrong sub band requested?");
 			return -3;
 		}
-
-		// In deep sleep we need to hijack the SX126x IRQ to trigger a wakeup of the nRF52
-		attachInterrupt(PIN_LORA_DIO_1, lora_interrupt_handler, RISING);
 
 		// Start the task that will handle the LoRaWan events
 		myLog_d("Starting LoRaWan task");
@@ -205,9 +200,6 @@ int8_t init_lora(void)
 						  g_lorawan_settings.p2p_symbol_timeout, false,
 						  0, true, 0, 0, false, true);
 
-		// In deep sleep we need to hijack the SX126x IRQ to trigger a wakeup of the nRF52
-		attachInterrupt(PIN_LORA_DIO_1, lora_interrupt_handler, RISING);
-
 		// Start the task that will handle the LoRaWan events
 		myLog_d("Starting LoRa task");
 		if (!xTaskCreate(lora_task, "LORA", 4096, NULL, TASK_PRIO_LOW, &loraTaskHandle))
@@ -238,6 +230,19 @@ void lora_task(void *pvParameters)
 {
 	while (1)
 	{
+		if ((g_lorawan_settings.lorawan_enable) && !lpwan_has_joined)
+		{
+			Radio.IrqProcess();
+			delay(100);
+			if (lpwan_has_joined)
+			{
+				// In deep sleep we need to hijack the SX126x IRQ to trigger a wakeup of the nRF52
+				attachInterrupt(PIN_LORA_DIO_1, lora_interrupt_handler, RISING);
+			}
+		}
+		else
+		{
+
 			// Switch off the indicator lights
 			digitalWrite(LED_BUILTIN, LOW);
 			// Only if semaphore is available we need to handle LoRa events.
@@ -246,11 +251,11 @@ void lora_task(void *pvParameters)
 			{
 				// Switch off the indicator lights
 				digitalWrite(LED_BUILTIN, HIGH);
-
 				// Handle Radio events with special process command!!!!
 				Radio.IrqProcessAfterDeepSleep();
 			}
 		}
+	}
 }
 
 /**************************************************************/
@@ -261,6 +266,8 @@ void lora_task(void *pvParameters)
  */
 static void lpwan_joined_handler(void)
 {
+	digitalWrite(LED_BUILTIN, LOW);
+
 	if (g_lorawan_settings.otaa_enabled)
 	{
 		uint32_t otaaDevAddr = lmh_getDevAddr();
@@ -271,10 +278,16 @@ static void lpwan_joined_handler(void)
 		myLog_d("ABP joined");
 	}
 
-	lpwan_has_joined = true;
-
-	// Switch to configured class
-	lmh_class_request((DeviceClass_t)g_lorawan_settings.lora_class);
+	// Class A is default in the LoRaWAN lib. If app needs different class, request change here
+	if (g_lorawan_settings.lora_class != CLASS_A)
+	{
+		// Switch to configured class
+		lmh_class_request((DeviceClass_t)g_lorawan_settings.lora_class);
+	}
+	else
+	{
+		lpwan_has_joined = true;
+	}
 
 	// Now we are connected, start the timer that will wakeup the loop frequently
 	g_task_wakeup_timer.begin(g_lorawan_settings.send_repeat_time, periodic_wakeup);
@@ -318,9 +331,6 @@ static void lpwan_rx_handler(lmh_app_data_t *app_data)
 				break;
 			}
 		}
-
-		// Send LoRaWan handler back to sleep
-		xSemaphoreTake(lora_sem, 10);
 		break;
 	case LORAWAN_APP_PORT:
 		// Copy the data into loop data buffer
@@ -333,9 +343,6 @@ static void lpwan_rx_handler(lmh_app_data_t *app_data)
 			myLog_d("Waking up loop task");
 			xSemaphoreGive(g_task_sem);
 		}
-
-		// Send LoRa handler back to sleep
-		xSemaphoreTake(lora_sem, 10);
 	}
 }
 
@@ -353,8 +360,7 @@ static void lpwan_class_confirm_handler(DeviceClass_t Class)
 	m_lora_app_data.port = g_lorawan_settings.app_port;
 	lmh_send(&m_lora_app_data, LMH_UNCONFIRMED_MSG);
 
-	// Send LoRa handler back to sleep
-	xSemaphoreTake(lora_sem, 10);
+	lpwan_has_joined = true;
 }
 
 /**
@@ -370,8 +376,6 @@ bool send_lpwan_packet(void)
 		{
 			//Not joined, try again later
 			myLog_d("Did not join network, skip sending frame");
-			// Send LoRa handler back to sleep
-			xSemaphoreTake(lora_sem, 10);
 			return false;
 		}
 
@@ -389,16 +393,10 @@ bool send_lpwan_packet(void)
 
 		lmh_error_status error = lmh_send(&m_lora_app_data, g_lorawan_settings.confirmed_msg_enabled);
 
-		// Send LoRa handler back to sleep
-		xSemaphoreTake(lora_sem, 10);
-
 		return (error == 0);
 	}
 	else
 	{
-		// Send LoRa handler back to sleep
-		xSemaphoreTake(lora_sem, 10);
-
 		return true;
 	}
 }
@@ -412,8 +410,6 @@ bool send_lpwan_packet(void)
 void on_tx_done(void)
 {
 	myLog_d("OnTxDone");
-	// Send LoRa handler back to sleep
-	xSemaphoreTake(lora_sem, 10);
 	Radio.Rx(0);
 }
 
@@ -432,9 +428,6 @@ void on_rx_done(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr)
 		xSemaphoreGive(g_task_sem);
 	}
 
-	// Send LoRa handler back to sleep
-	xSemaphoreTake(lora_sem, 10);
-
 	Radio.Rx(0);
 }
 
@@ -443,9 +436,6 @@ void on_rx_done(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr)
 void on_tx_timeout(void)
 {
 	myLog_d("OnTxTimeout");
-
-	// Send LoRa handler back to sleep
-	xSemaphoreTake(lora_sem, 10);
 
 	Radio.Rx(0);
 }
@@ -456,9 +446,6 @@ void on_rx_timeout(void)
 {
 	myLog_d("OnRxTimeout");
 
-	// Send LoRa handler back to sleep
-	xSemaphoreTake(lora_sem, 10);
-
 	Radio.Rx(0);
 }
 
@@ -466,9 +453,6 @@ void on_rx_timeout(void)
  */
 void on_rx_crc_error(void)
 {
-	// Send LoRa handler back to sleep
-	xSemaphoreTake(lora_sem, 10);
-
 	Radio.Rx(0);
 }
 
@@ -478,9 +462,6 @@ void on_cad_done(bool cadResult)
 {
 	if (cadResult)
 	{
-		// Send LoRa handler back to sleep
-		xSemaphoreTake(lora_sem, 10);
-
 		Radio.Rx(0);
 	}
 	else
@@ -496,14 +477,14 @@ void on_cad_done(bool cadResult)
 void send_lora_packet(void)
 {
 	g_tx_data_len = 0;
-	g_tx_lora_data[g_tx_data_len++] = 6;
+	g_tx_lora_data[g_tx_data_len++] = 'H';
 	g_tx_lora_data[g_tx_data_len++] = 'e';
 	g_tx_lora_data[g_tx_data_len++] = 'l';
 	g_tx_lora_data[g_tx_data_len++] = 'l';
 	g_tx_lora_data[g_tx_data_len++] = 'o';
 
 	// Prepare LoRa CAD
-	Radio.Sleep(); // Radio.Standby();
+	Radio.Sleep();
 	Radio.SetCadParams(LORA_CAD_08_SYMBOL, g_lorawan_settings.p2p_sf + 13, 10, LORA_CAD_ONLY, 0);
 
 	// Switch on Indicator lights
@@ -513,7 +494,4 @@ void send_lora_packet(void)
 
 	// Start CAD
 	Radio.StartCad();
-
-	// Send LoRa handler back to sleep
-	xSemaphoreTake(lora_sem, 10);
 }

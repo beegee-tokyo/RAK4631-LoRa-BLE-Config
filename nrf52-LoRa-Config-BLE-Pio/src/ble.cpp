@@ -141,5 +141,5 @@ void bleuart_rx_callback(uint16_t conn_handle)
 
 	uart_rx_buff.toUpperCase();
 
-	myLog_d("BLE Received %s", uart_rx_buff.c_str());
+	myLog_d("BLE Received %s\n", uart_rx_buff.c_str());
 }

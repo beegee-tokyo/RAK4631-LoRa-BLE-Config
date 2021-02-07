@@ -17,6 +17,8 @@ s_lorawan_settings g_flash_content;
 #include <InternalFileSystem.h>
 using namespace Adafruit_LittleFS_Namespace;
 
+static const char settings_name[] = "RAK";
+
 File file(InternalFS);
 
 void flash_reset(void);
@@ -31,7 +33,7 @@ void init_flash(void)
 	InternalFS.begin();
 
 	// Check if file exists
-	file.open("RAK", FILE_O_READ);
+	file.open(settings_name, FILE_O_READ);
 	if (!file)
 	{
 		myLog_e("File doesn't exist, force format");
@@ -54,7 +56,7 @@ boolean save_settings(void)
 {
 	bool result = true;
 	// Read saved content
-	file.open("RAK", FILE_O_READ);
+	file.open(settings_name, FILE_O_READ);
 	if (!file)
 	{
 		myLog_e("File doesn't exist, force format");
@@ -68,9 +70,9 @@ boolean save_settings(void)
 		myLog_e("Flash content changed, writing new data");
 		delay(100);
 
-		InternalFS.remove("RAK");
+		InternalFS.remove(settings_name);
 
-		if (file.open("RAK", FILE_O_WRITE))
+		if (file.open(settings_name, FILE_O_WRITE))
 		{
 			file.write((uint8_t *)&g_lorawan_settings, sizeof(s_lorawan_settings));
 			file.flush();
@@ -92,7 +94,7 @@ boolean save_settings(void)
 void flash_reset(void)
 {
 	InternalFS.format();
-	if (file.open("RAK", FILE_O_WRITE))
+	if (file.open(settings_name, FILE_O_WRITE))
 	{
 		file.write((uint8_t *)&g_lorawan_settings, sizeof(s_lorawan_settings));
 		file.flush();

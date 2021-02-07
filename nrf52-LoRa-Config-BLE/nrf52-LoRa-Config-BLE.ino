@@ -78,7 +78,7 @@ void setup()
     }
   }
 
-  digitalWrite(LED_BUILTIN, LOW);
+  digitalWrite(LED_BUILTIN, HIGH);
 
   Serial.println("=====================================");
   Serial.println("RAK4631 LoRaWan BLE Config Test");

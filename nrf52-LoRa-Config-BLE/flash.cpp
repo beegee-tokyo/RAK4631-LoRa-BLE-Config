@@ -17,21 +17,23 @@ s_lorawan_settings g_flash_content;
 #include <InternalFileSystem.h>
 using namespace Adafruit_LittleFS_Namespace;
 
+static const char settings_name[] = "RAK";
+
 File file(InternalFS);
 
 void flash_reset(void);
 
 /**
- * @brief Initialize access to nRF52 internal file system
- * 
- */
+   @brief Initialize access to nRF52 internal file system
+
+*/
 void init_flash(void)
 {
   // Initialize Internal File System
   InternalFS.begin();
 
   // Check if file exists
-  file.open("RAK", FILE_O_READ);
+  file.open(settings_name, FILE_O_READ);
   if (!file)
   {
     Serial.println("File doesn't exist, force format");
@@ -45,16 +47,16 @@ void init_flash(void)
 }
 
 /**
- * @brief Save changed settings if required
- * 
- * @return boolean 
- *       result of saving
- */
+   @brief Save changed settings if required
+
+   @return boolean
+         result of saving
+*/
 boolean save_settings(void)
 {
   bool result = true;
   // Read saved content
-  file.open("RAK", FILE_O_READ);
+  file.open(settings_name, FILE_O_READ);
   if (!file)
   {
     Serial.println("File doesn't exist, force format");
@@ -68,9 +70,9 @@ boolean save_settings(void)
     Serial.println("Flash content changed, writing new data");
     delay(100);
 
-    InternalFS.remove("RAK");
+    InternalFS.remove(settings_name);
 
-    if (file.open("RAK", FILE_O_WRITE))
+    if (file.open(settings_name, FILE_O_WRITE))
     {
       file.write((uint8_t *)&g_lorawan_settings, sizeof(s_lorawan_settings));
       file.flush();
@@ -86,13 +88,13 @@ boolean save_settings(void)
 }
 
 /**
- * @brief Reset content of the filesystem
- * 
- */
+   @brief Reset content of the filesystem
+
+*/
 void flash_reset(void)
 {
   InternalFS.format();
-  if (file.open("RAK", FILE_O_WRITE))
+  if (file.open(settings_name, FILE_O_WRITE))
   {
     file.write((uint8_t *)&g_lorawan_settings, sizeof(s_lorawan_settings));
     file.flush();
@@ -101,9 +103,9 @@ void flash_reset(void)
 }
 
 /**
- * @brief Printout of all settings
- * 
- */
+   @brief Printout of all settings
+
+*/
 void log_settings(void)
 {
   Serial.printf("000 Marks: %02X %02X\n", g_lorawan_settings.valid_mark_1, g_lorawan_settings.valid_mark_2);
@@ -116,33 +118,33 @@ void log_settings(void)
                 g_lorawan_settings.node_app_eui[4], g_lorawan_settings.node_app_eui[5],
                 g_lorawan_settings.node_app_eui[6], g_lorawan_settings.node_app_eui[7]);
   Serial.printf("018 App Key %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X\n",
-			g_lorawan_settings.node_app_key[0], g_lorawan_settings.node_app_key[1],
-			g_lorawan_settings.node_app_key[2], g_lorawan_settings.node_app_key[3],
-			g_lorawan_settings.node_app_key[4], g_lorawan_settings.node_app_key[5],
-			g_lorawan_settings.node_app_key[6], g_lorawan_settings.node_app_key[7],
-			g_lorawan_settings.node_app_key[8], g_lorawan_settings.node_app_key[9],
-			g_lorawan_settings.node_app_key[10], g_lorawan_settings.node_app_key[11],
-			g_lorawan_settings.node_app_key[12], g_lorawan_settings.node_app_key[13],
-			g_lorawan_settings.node_app_key[14], g_lorawan_settings.node_app_key[15]);
+                g_lorawan_settings.node_app_key[0], g_lorawan_settings.node_app_key[1],
+                g_lorawan_settings.node_app_key[2], g_lorawan_settings.node_app_key[3],
+                g_lorawan_settings.node_app_key[4], g_lorawan_settings.node_app_key[5],
+                g_lorawan_settings.node_app_key[6], g_lorawan_settings.node_app_key[7],
+                g_lorawan_settings.node_app_key[8], g_lorawan_settings.node_app_key[9],
+                g_lorawan_settings.node_app_key[10], g_lorawan_settings.node_app_key[11],
+                g_lorawan_settings.node_app_key[12], g_lorawan_settings.node_app_key[13],
+                g_lorawan_settings.node_app_key[14], g_lorawan_settings.node_app_key[15]);
   Serial.printf("036 Dev Addr %08lX", g_lorawan_settings.node_dev_addr);
   Serial.printf("040 NWS Key %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X\n",
-			g_lorawan_settings.node_nws_key[0], g_lorawan_settings.node_nws_key[1],
-			g_lorawan_settings.node_nws_key[2], g_lorawan_settings.node_nws_key[3],
-			g_lorawan_settings.node_nws_key[4], g_lorawan_settings.node_nws_key[5],
-			g_lorawan_settings.node_nws_key[6], g_lorawan_settings.node_nws_key[7],
-			g_lorawan_settings.node_nws_key[8], g_lorawan_settings.node_nws_key[9],
-			g_lorawan_settings.node_nws_key[10], g_lorawan_settings.node_nws_key[11],
-			g_lorawan_settings.node_nws_key[12], g_lorawan_settings.node_nws_key[13],
-			g_lorawan_settings.node_nws_key[14], g_lorawan_settings.node_nws_key[15]);
+                g_lorawan_settings.node_nws_key[0], g_lorawan_settings.node_nws_key[1],
+                g_lorawan_settings.node_nws_key[2], g_lorawan_settings.node_nws_key[3],
+                g_lorawan_settings.node_nws_key[4], g_lorawan_settings.node_nws_key[5],
+                g_lorawan_settings.node_nws_key[6], g_lorawan_settings.node_nws_key[7],
+                g_lorawan_settings.node_nws_key[8], g_lorawan_settings.node_nws_key[9],
+                g_lorawan_settings.node_nws_key[10], g_lorawan_settings.node_nws_key[11],
+                g_lorawan_settings.node_nws_key[12], g_lorawan_settings.node_nws_key[13],
+                g_lorawan_settings.node_nws_key[14], g_lorawan_settings.node_nws_key[15]);
   Serial.printf("056 Apps Key %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X\n",
-			g_lorawan_settings.node_apps_key[0], g_lorawan_settings.node_apps_key[1],
-			g_lorawan_settings.node_apps_key[2], g_lorawan_settings.node_apps_key[3],
-			g_lorawan_settings.node_apps_key[4], g_lorawan_settings.node_apps_key[5],
-			g_lorawan_settings.node_apps_key[6], g_lorawan_settings.node_apps_key[7],
-			g_lorawan_settings.node_apps_key[8], g_lorawan_settings.node_apps_key[9],
-			g_lorawan_settings.node_apps_key[10], g_lorawan_settings.node_apps_key[11],
-			g_lorawan_settings.node_apps_key[12], g_lorawan_settings.node_apps_key[13],
-			g_lorawan_settings.node_apps_key[14], g_lorawan_settings.node_apps_key[15]);
+                g_lorawan_settings.node_apps_key[0], g_lorawan_settings.node_apps_key[1],
+                g_lorawan_settings.node_apps_key[2], g_lorawan_settings.node_apps_key[3],
+                g_lorawan_settings.node_apps_key[4], g_lorawan_settings.node_apps_key[5],
+                g_lorawan_settings.node_apps_key[6], g_lorawan_settings.node_apps_key[7],
+                g_lorawan_settings.node_apps_key[8], g_lorawan_settings.node_apps_key[9],
+                g_lorawan_settings.node_apps_key[10], g_lorawan_settings.node_apps_key[11],
+                g_lorawan_settings.node_apps_key[12], g_lorawan_settings.node_apps_key[13],
+                g_lorawan_settings.node_apps_key[14], g_lorawan_settings.node_apps_key[15]);
   Serial.printf("072 OTAA %s\n", g_lorawan_settings.otaa_enabled ? "enabled" : "disabled");
   Serial.printf("073 ADR %s\n", g_lorawan_settings.adr_enabled ? "enabled" : "disabled");
   Serial.printf("074 %s Network\n", g_lorawan_settings.public_network ? "Public" : "Private");

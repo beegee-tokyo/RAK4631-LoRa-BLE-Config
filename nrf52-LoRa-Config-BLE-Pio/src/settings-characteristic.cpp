@@ -11,7 +11,7 @@
 
 #include "main.h"
 
-/** LoRaWAN service 0xF0E0 */
+/** LoRaWAN service 0xF0A0 */
 BLEService lorawan_service = BLEService(0xF0A0);
 /** LoRa settings  characteristic 0xF0A1 */
 BLECharacteristic lorawan_data = BLECharacteristic(0xF0A1);
@@ -29,7 +29,6 @@ void init_settings_characteristic(void)
 	lorawan_service.begin();
 	lorawan_data.setProperties(CHR_PROPS_NOTIFY | CHR_PROPS_READ | CHR_PROPS_WRITE);
 	lorawan_data.setPermission(SECMODE_OPEN, SECMODE_OPEN);
-	// lorawan_data.setMaxLen(sizeof(s_lorawan_settings) + 1);
 	lorawan_data.setFixedLen(sizeof(s_lorawan_settings) + 1);
 	lorawan_data.setWriteCallback(settings_rx_callback);
 

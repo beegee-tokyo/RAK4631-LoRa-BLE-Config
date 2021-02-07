@@ -79,12 +79,13 @@ void setup()
 		}
 	}
 
-	digitalWrite(LED_BUILTIN, LOW);
 #endif
 
-	myLog_d("=====================================");
-	myLog_d("RAK4631 LoRaWan BLE Config Test");
-	myLog_d("=====================================");
+	digitalWrite(LED_BUILTIN, HIGH);
+
+	myLog_w("=====================================");
+	myLog_w("RAK4631 LoRaWan BLE Config Test");
+	myLog_w("=====================================");
 
 	// Get LoRaWAN parameter
 	init_flash();
@@ -112,13 +113,6 @@ void setup()
 			}
 		}
 		myLog_d("LoRaWan init success");
-//		delay(100);
-//		while (lmh_join_status_get() != LMH_SET)
-//		{
-//			delay(100);
-//			digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
-//		}
-//		delay(500);
 	}
 	else
 	{
