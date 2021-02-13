@@ -13,6 +13,22 @@
 
 #define SW_VERSION 0.01
 
+// Debug output set to 0 to disable app debug output
+#define MY_DEBUG 1
+
+#if MY_DEBUG > 0
+#define MYLOG(tag, ...)     \
+  do                        \
+  {                         \
+    if (tag)                \
+      PRINTF("[%s] ", tag); \
+    PRINTF(__VA_ARGS__);    \
+    PRINTF("\n");           \
+  } while (0)
+#else
+#define MYLOG(...)
+#endif
+
 #include <Arduino.h>
 #include <nrf_nvic.h>
 
@@ -53,29 +69,52 @@ struct s_lorawan_settings
   uint8_t node_nws_key[16] = {0x32, 0x3D, 0x15, 0x5A, 0x00, 0x0D, 0xF3, 0x35, 0x30, 0x7A, 0x16, 0xDA, 0x0C, 0x9D, 0xF5, 0x3F};
   // ABP Application Session key MSB
   uint8_t node_apps_key[16] = {0x3F, 0x6A, 0x66, 0x45, 0x9D, 0x5E, 0xDC, 0xA6, 0x3C, 0xBC, 0x46, 0x19, 0xCD, 0x61, 0xA1, 0x1E};
-  bool otaa_enabled = true;                                // Flag for OTAA or ABP
-  bool adr_enabled = false;                                // Flag for ADR on or off
-  bool public_network = true;                              // Flag for public or private network
-  bool duty_cycle_enabled = false;                         // Flag to enable duty cycle
-  uint32_t send_repeat_time = 120000;                      // In milliseconds: 2 * 60 * 1000 => 2 minutes
-  uint8_t join_trials = 5;                                 // Number of join retries
-  uint8_t tx_power = 22;                                   // TX power 0 .. 22
-  uint8_t data_rate = 3;                                   // Data rate 0 .. 15 (validity depnends on Region)
-  uint8_t lora_class = 0;                                  // LoRaWAN class 0: A, 2: C, 1: B is not supported
-  uint8_t subband_channels = 1;                            // Subband channel selection 1 .. 9
-  bool auto_join = false;                                  // Flag if node joins automatically after reboot
-  uint8_t app_port = 2;                                    // Data port to send data
-  lmh_confirm confirmed_msg_enabled = LMH_UNCONFIRMED_MSG; // Flag to enable confirmed messages
-  uint8_t lorawan_region = 1;                              // Fixed LoRaWAN lorawan_region (depends on compiler option
-  bool lorawan_enable = true;                              // Flag for LoRaWAN or LoRa P2P
-  uint32_t p2p_frequency = 923300000;                      // Frequency in Hz
-  uint8_t p2p_tx_power = 22;                               // Tx power 0 .. 22
-  uint8_t p2p_bandwidth = 0;                               // Bandwidth 0: 125 kHz, 1: 250 kHz, 2: 500 kHz, 3: Reserved
-  uint8_t p2p_sf = 7;                                      // Spreading Factor SF7..SF12
-  uint8_t p2p_cr = 1;                                      // Coding Rate 1: 4/5, 2: 4/6, 3: 4/7, 4: 4/8
-  uint8_t p2p_preamble_len = 8;                            // Preamble length
-  uint16_t p2p_symbol_timeout = 0;                         // Symbol timeout
-  bool resetRequest = true;                                // Command from BLE to reset device
+  // Flag for OTAA or ABP
+  bool otaa_enabled = true;
+  // Flag for ADR on or off
+  bool adr_enabled = false;
+  // Flag for public or private network
+  bool public_network = true;
+  // Flag to enable duty cycle
+  bool duty_cycle_enabled = false;
+  // In milliseconds: 2 * 60 * 1000 => 2 minutes
+  uint32_t send_repeat_time = 120000;
+  // Number of join retries
+  uint8_t join_trials = 5;
+  // TX power 0 .. 22
+  uint8_t tx_power = 22;
+  // Data rate 0 .. 15 (validity depnends on Region)
+  uint8_t data_rate = 3;
+  // LoRaWAN class 0: A, 2: C, 1: B is not supported
+  uint8_t lora_class = 0;
+  // Subband channel selection 1 .. 9
+  uint8_t subband_channels = 1;
+  // Flag if node joins automatically after reboot
+  bool auto_join = false;
+  // Data port to send data
+  uint8_t app_port = 2;
+  // Flag to enable confirmed messages
+  lmh_confirm confirmed_msg_enabled = LMH_UNCONFIRMED_MSG;
+  // Fixed LoRaWAN lorawan_region (depends on compiler option)
+  uint8_t lorawan_region = 1;
+  // Flag for LoRaWAN or LoRa P2P
+  bool lorawan_enable = true;
+  // Frequency in Hz
+  uint32_t p2p_frequency = 923300000;
+  // Tx power 0 .. 22
+  uint8_t p2p_tx_power = 22;
+  // Bandwidth 0: 125 kHz, 1: 250 kHz, 2: 500 kHz, 3: Reserved
+  uint8_t p2p_bandwidth = 0;
+  // Spreading Factor SF7..SF12
+  uint8_t p2p_sf = 7;
+  // Coding Rate 1: 4/5, 2: 4/6, 3: 4/7, 4: 4/8
+  uint8_t p2p_cr = 1;
+  // Preamble length
+  uint8_t p2p_preamble_len = 8;
+  // Symbol timeout
+  uint16_t p2p_symbol_timeout = 0;
+  // Command from BLE to reset device
+  bool resetRequest = true;
 };
 
 extern s_lorawan_settings g_lorawan_settings;

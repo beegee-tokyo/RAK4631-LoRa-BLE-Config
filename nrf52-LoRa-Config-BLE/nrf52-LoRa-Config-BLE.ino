@@ -60,6 +60,7 @@ void setup()
   pinMode(LED_CONN, OUTPUT);
   digitalWrite(LED_CONN, HIGH);
 
+#ifdef MY_DEBUG > 0
   // Initialize Serial for debug output
   Serial.begin(115200);
 
@@ -77,12 +78,13 @@ void setup()
       break;
     }
   }
+#endif
 
   digitalWrite(LED_BUILTIN, HIGH);
 
-  Serial.println("=====================================");
-  Serial.println("RAK4631 LoRaWan BLE Config Test");
-  Serial.println("=====================================");
+  MYLOG("APP", "=====================================");
+  MYLOG("APP", "RAK4631 LoRaWan BLE Config Test");
+  MYLOG("APP", "=====================================");
 
   // Get LoRaWAN parameter
   init_flash();
@@ -93,27 +95,28 @@ void setup()
   // Check if auto join is enabled
   if (g_lorawan_settings.auto_join)
   {
-    Serial.println("Auto join is enabled, start LoRaWAN and join");
+    MYLOG("APP", "Auto join is enabled, start LoRaWAN and join");
     // Initialize LoRaWan and start join request
     int8_t lora_init_result = init_lora();
 
     if (lora_init_result != 0)
     {
-      Serial.println("Init LoRa failed");
+      MYLOG("APP", "Init LoRa failed");
 
       // Without working LoRa we just stop here
       while (1)
       {
-        Serial.println("Nothing I can do, just loving you");
+        MYLOG("APP", "Nothing I can do, just loving you");
         digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
         delay(5000);
       }
     }
-    Serial.println("LoRaWan init success");
+    MYLOG("APP", "LoRaWan init success");
   }
   else
   {
-    Serial.println("Auto join is disabled, waiting for connect command");
+    MYLOG("APP", "Auto join is disabled, waiting for connect command");
+    delay(100);
   }
 
   // Take the semaphore so the loop will go to sleep until an event happens
@@ -126,56 +129,53 @@ void setup()
 */
 void loop()
 {
-  // Switch off blue LED to show we go to sleep
-  digitalWrite(LED_BUILTIN, LOW);
   // Sleep until we are woken up by an event
   if (xSemaphoreTake(g_task_sem, portMAX_DELAY) == pdTRUE)
   {
     // Switch on blue LED to show we are awake
     digitalWrite(LED_BUILTIN, HIGH);
-    delay(500); // Only so we can see the blue LED
     switch (g_task_event_type)
     {
       case 0:
-        Serial.println("Received package over LoRaWan");
+        MYLOG("APP", "Received package over LoRaWan");
         if (g_rx_lora_data[0] > 0x1F)
         {
-          Serial.printf("%s\n", (char *)g_rx_lora_data);
+          MYLOG("APP", "%s", (char *)g_rx_lora_data);
         }
         else
         {
           for (int idx = 0; idx < g_rx_data_len; idx++)
           {
-            Serial.printf("%X ", g_rx_lora_data[idx]);
+            MYLOG("APP", "%X ", g_rx_lora_data[idx]);
           }
         }
 
         break;
       case 1:
-        Serial.println("Timer wakeup");
+        MYLOG("APP", "Timer wakeup");
         /// \todo read sensor or whatever you need to do frequently
 
         if (g_lorawan_settings.lorawan_enable)
         { // Send the data package
           if (send_lpwan_packet())
           {
-            Serial.println("LoRaWan package sent successfully");
+            MYLOG("APP", "LoRaWan package sent successfully");
           }
           else
           {
-            Serial.println("LoRaWan package send failed");
+            MYLOG("APP", "LoRaWan package send failed");
             /// \todo maybe you need to retry here?
           }
         }
         else
         {
           send_lora_packet();
-          Serial.println("LoRa package sent");
+          MYLOG("APP", "LoRa package sent");
         }
 
         break;
       case 2:
-        Serial.println("Config received over BLE");
+        MYLOG("APP", "Config received over BLE");
         delay(100);
 
         // Inform connected device about new settings
@@ -189,10 +189,13 @@ void loop()
         }
         break;
       default:
-        Serial.println("This should never happen ;-)");
+        MYLOG("APP", "This should never happen ;-)");
         break;
     }
+    delay(500); // Only so we can see the blue LED
     // Go back to sleep
     xSemaphoreTake(g_task_sem, 10);
+    // Switch off blue LED to show we go to sleep
+    digitalWrite(LED_BUILTIN, LOW);
   }
 }

@@ -101,8 +101,12 @@ void init_ble(void)
   */
   Bluefruit.Advertising.restartOnDisconnect(true);
   Bluefruit.Advertising.setInterval(32, 244); // in unit of 0.625 ms
-  Bluefruit.Advertising.setFastTimeout(30); // number of seconds in fast mode
-  Bluefruit.Advertising.start(0);       // 0 = Don't stop advertising after n seconds
+  Bluefruit.Advertising.setFastTimeout(15); // number of seconds in fast mode
+#ifdef MY_DEBUG > 0
+  Bluefruit.Advertising.start(0);       // 0 = Don't stop advertising
+#else
+  Bluefruit.Advertising.start(30);       // 30 = Stop advertising after 30 seconds
+#endif
 }
 
 /**
@@ -141,5 +145,5 @@ void bleuart_rx_callback(uint16_t conn_handle)
 
   uart_rx_buff.toUpperCase();
 
-  Serial.printf("BLE Received %s\n", uart_rx_buff.c_str());
+  MYLOG("APP", "BLE Received %s", uart_rx_buff.c_str());
 }

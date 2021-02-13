@@ -36,7 +36,7 @@ void init_flash(void)
   file.open(settings_name, FILE_O_READ);
   if (!file)
   {
-    Serial.println("File doesn't exist, force format");
+    MYLOG("APP", "File doesn't exist, force format");
     delay(100);
     flash_reset();
     return;
@@ -59,7 +59,7 @@ boolean save_settings(void)
   file.open(settings_name, FILE_O_READ);
   if (!file)
   {
-    Serial.println("File doesn't exist, force format");
+    MYLOG("APP", "File doesn't exist, force format");
     delay(100);
     flash_reset();
   }
@@ -67,7 +67,7 @@ boolean save_settings(void)
   file.close();
   if (memcmp((void *)&g_flash_content, (void *)&g_lorawan_settings, sizeof(s_lorawan_settings)) != 0)
   {
-    Serial.println("Flash content changed, writing new data");
+    MYLOG("APP", "Flash content changed, writing new data");
     delay(100);
 
     InternalFS.remove(settings_name);
@@ -108,63 +108,64 @@ void flash_reset(void)
 */
 void log_settings(void)
 {
-  Serial.printf("000 Marks: %02X %02X\n", g_lorawan_settings.valid_mark_1, g_lorawan_settings.valid_mark_2);
-  Serial.printf("002 Dev EUI %02X %02X %02X %02X %02X %02X %02X %02X\n", g_lorawan_settings.node_device_eui[0], g_lorawan_settings.node_device_eui[1],
-                g_lorawan_settings.node_device_eui[2], g_lorawan_settings.node_device_eui[3],
-                g_lorawan_settings.node_device_eui[4], g_lorawan_settings.node_device_eui[5],
-                g_lorawan_settings.node_device_eui[6], g_lorawan_settings.node_device_eui[7]);
-  Serial.printf("010 App EUI %02X %02X %02X %02X %02X %02X %02X %02X\n", g_lorawan_settings.node_app_eui[0], g_lorawan_settings.node_app_eui[1],
-                g_lorawan_settings.node_app_eui[2], g_lorawan_settings.node_app_eui[3],
-                g_lorawan_settings.node_app_eui[4], g_lorawan_settings.node_app_eui[5],
-                g_lorawan_settings.node_app_eui[6], g_lorawan_settings.node_app_eui[7]);
-  Serial.printf("018 App Key %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X\n",
-                g_lorawan_settings.node_app_key[0], g_lorawan_settings.node_app_key[1],
-                g_lorawan_settings.node_app_key[2], g_lorawan_settings.node_app_key[3],
-                g_lorawan_settings.node_app_key[4], g_lorawan_settings.node_app_key[5],
-                g_lorawan_settings.node_app_key[6], g_lorawan_settings.node_app_key[7],
-                g_lorawan_settings.node_app_key[8], g_lorawan_settings.node_app_key[9],
-                g_lorawan_settings.node_app_key[10], g_lorawan_settings.node_app_key[11],
-                g_lorawan_settings.node_app_key[12], g_lorawan_settings.node_app_key[13],
-                g_lorawan_settings.node_app_key[14], g_lorawan_settings.node_app_key[15]);
-  Serial.printf("036 Dev Addr %08lX", g_lorawan_settings.node_dev_addr);
-  Serial.printf("040 NWS Key %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X\n",
-                g_lorawan_settings.node_nws_key[0], g_lorawan_settings.node_nws_key[1],
-                g_lorawan_settings.node_nws_key[2], g_lorawan_settings.node_nws_key[3],
-                g_lorawan_settings.node_nws_key[4], g_lorawan_settings.node_nws_key[5],
-                g_lorawan_settings.node_nws_key[6], g_lorawan_settings.node_nws_key[7],
-                g_lorawan_settings.node_nws_key[8], g_lorawan_settings.node_nws_key[9],
-                g_lorawan_settings.node_nws_key[10], g_lorawan_settings.node_nws_key[11],
-                g_lorawan_settings.node_nws_key[12], g_lorawan_settings.node_nws_key[13],
-                g_lorawan_settings.node_nws_key[14], g_lorawan_settings.node_nws_key[15]);
-  Serial.printf("056 Apps Key %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X\n",
-                g_lorawan_settings.node_apps_key[0], g_lorawan_settings.node_apps_key[1],
-                g_lorawan_settings.node_apps_key[2], g_lorawan_settings.node_apps_key[3],
-                g_lorawan_settings.node_apps_key[4], g_lorawan_settings.node_apps_key[5],
-                g_lorawan_settings.node_apps_key[6], g_lorawan_settings.node_apps_key[7],
-                g_lorawan_settings.node_apps_key[8], g_lorawan_settings.node_apps_key[9],
-                g_lorawan_settings.node_apps_key[10], g_lorawan_settings.node_apps_key[11],
-                g_lorawan_settings.node_apps_key[12], g_lorawan_settings.node_apps_key[13],
-                g_lorawan_settings.node_apps_key[14], g_lorawan_settings.node_apps_key[15]);
-  Serial.printf("072 OTAA %s\n", g_lorawan_settings.otaa_enabled ? "enabled" : "disabled");
-  Serial.printf("073 ADR %s\n", g_lorawan_settings.adr_enabled ? "enabled" : "disabled");
-  Serial.printf("074 %s Network\n", g_lorawan_settings.public_network ? "Public" : "Private");
-  Serial.printf("075 Dutycycle %s\n", g_lorawan_settings.duty_cycle_enabled ? "enabled" : "disabled");
-  Serial.printf("076 Repeat time %ld\n", g_lorawan_settings.send_repeat_time);
-  Serial.printf("080 Join trials %d\n", g_lorawan_settings.join_trials);
-  Serial.printf("081 TX Power %d\n", g_lorawan_settings.tx_power);
-  Serial.printf("082 DR %d\n", g_lorawan_settings.data_rate);
-  Serial.printf("083 Class %d\n", g_lorawan_settings.lora_class);
-  Serial.printf("084 Subband %d\n", g_lorawan_settings.subband_channels);
-  Serial.printf("085 Auto join %s\n", g_lorawan_settings.auto_join ? "enabled" : "disabled");
-  Serial.printf("086 Fport %d\n", g_lorawan_settings.app_port);
-  Serial.printf("087 %s Message\n", g_lorawan_settings.confirmed_msg_enabled ? "Confirmed" : "Unconfirmed");
-  Serial.printf("088 Region %d\n", g_lorawan_settings.lorawan_region);
-  Serial.printf("089 Mode %s\n", g_lorawan_settings.lorawan_enable ? "LoRaWAN" : "LoRa P2P");
-  Serial.printf("092 P2P Frequency %d\n", g_lorawan_settings.p2p_frequency);
-  Serial.printf("096 P2P TX Power %d\n", g_lorawan_settings.p2p_tx_power);
-  Serial.printf("097 P2P Bandwidth %d\n", g_lorawan_settings.p2p_bandwidth);
-  Serial.printf("098 P2P SF %d\n", g_lorawan_settings.p2p_sf);
-  Serial.printf("099 P2P CR %d\n", g_lorawan_settings.p2p_cr);
-  Serial.printf("100 P2P Preamble %d\n", g_lorawan_settings.p2p_preamble_len);
-  Serial.printf("102 P2P Timeout %d\n", g_lorawan_settings.p2p_symbol_timeout);
+  MYLOG("APP", "Saved settings:");
+  MYLOG("APP", "000 Marks: %02X %02X", g_lorawan_settings.valid_mark_1, g_lorawan_settings.valid_mark_2);
+  MYLOG("APP", "002 Dev EUI %02X %02X %02X %02X %02X %02X %02X %02X", g_lorawan_settings.node_device_eui[0], g_lorawan_settings.node_device_eui[1],
+        g_lorawan_settings.node_device_eui[2], g_lorawan_settings.node_device_eui[3],
+        g_lorawan_settings.node_device_eui[4], g_lorawan_settings.node_device_eui[5],
+        g_lorawan_settings.node_device_eui[6], g_lorawan_settings.node_device_eui[7]);
+  MYLOG("APP", "010 App EUI %02X %02X %02X %02X %02X %02X %02X %02X", g_lorawan_settings.node_app_eui[0], g_lorawan_settings.node_app_eui[1],
+        g_lorawan_settings.node_app_eui[2], g_lorawan_settings.node_app_eui[3],
+        g_lorawan_settings.node_app_eui[4], g_lorawan_settings.node_app_eui[5],
+        g_lorawan_settings.node_app_eui[6], g_lorawan_settings.node_app_eui[7]);
+  MYLOG("APP", "018 App Key %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X",
+        g_lorawan_settings.node_app_key[0], g_lorawan_settings.node_app_key[1],
+        g_lorawan_settings.node_app_key[2], g_lorawan_settings.node_app_key[3],
+        g_lorawan_settings.node_app_key[4], g_lorawan_settings.node_app_key[5],
+        g_lorawan_settings.node_app_key[6], g_lorawan_settings.node_app_key[7],
+        g_lorawan_settings.node_app_key[8], g_lorawan_settings.node_app_key[9],
+        g_lorawan_settings.node_app_key[10], g_lorawan_settings.node_app_key[11],
+        g_lorawan_settings.node_app_key[12], g_lorawan_settings.node_app_key[13],
+        g_lorawan_settings.node_app_key[14], g_lorawan_settings.node_app_key[15]);
+  MYLOG("APP", "036 Dev Addr %08lX", g_lorawan_settings.node_dev_addr);
+  MYLOG("APP", "040 NWS Key %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X",
+        g_lorawan_settings.node_nws_key[0], g_lorawan_settings.node_nws_key[1],
+        g_lorawan_settings.node_nws_key[2], g_lorawan_settings.node_nws_key[3],
+        g_lorawan_settings.node_nws_key[4], g_lorawan_settings.node_nws_key[5],
+        g_lorawan_settings.node_nws_key[6], g_lorawan_settings.node_nws_key[7],
+        g_lorawan_settings.node_nws_key[8], g_lorawan_settings.node_nws_key[9],
+        g_lorawan_settings.node_nws_key[10], g_lorawan_settings.node_nws_key[11],
+        g_lorawan_settings.node_nws_key[12], g_lorawan_settings.node_nws_key[13],
+        g_lorawan_settings.node_nws_key[14], g_lorawan_settings.node_nws_key[15]);
+  MYLOG("APP", "056 Apps Key %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X",
+        g_lorawan_settings.node_apps_key[0], g_lorawan_settings.node_apps_key[1],
+        g_lorawan_settings.node_apps_key[2], g_lorawan_settings.node_apps_key[3],
+        g_lorawan_settings.node_apps_key[4], g_lorawan_settings.node_apps_key[5],
+        g_lorawan_settings.node_apps_key[6], g_lorawan_settings.node_apps_key[7],
+        g_lorawan_settings.node_apps_key[8], g_lorawan_settings.node_apps_key[9],
+        g_lorawan_settings.node_apps_key[10], g_lorawan_settings.node_apps_key[11],
+        g_lorawan_settings.node_apps_key[12], g_lorawan_settings.node_apps_key[13],
+        g_lorawan_settings.node_apps_key[14], g_lorawan_settings.node_apps_key[15]);
+  MYLOG("APP", "072 OTAA %s", g_lorawan_settings.otaa_enabled ? "enabled" : "disabled");
+  MYLOG("APP", "073 ADR %s", g_lorawan_settings.adr_enabled ? "enabled" : "disabled");
+  MYLOG("APP", "074 %s Network", g_lorawan_settings.public_network ? "Public" : "Private");
+  MYLOG("APP", "075 Dutycycle %s", g_lorawan_settings.duty_cycle_enabled ? "enabled" : "disabled");
+  MYLOG("APP", "076 Repeat time %ld", g_lorawan_settings.send_repeat_time);
+  MYLOG("APP", "080 Join trials %d", g_lorawan_settings.join_trials);
+  MYLOG("APP", "081 TX Power %d", g_lorawan_settings.tx_power);
+  MYLOG("APP", "082 DR %d", g_lorawan_settings.data_rate);
+  MYLOG("APP", "083 Class %d", g_lorawan_settings.lora_class);
+  MYLOG("APP", "084 Subband %d", g_lorawan_settings.subband_channels);
+  MYLOG("APP", "085 Auto join %s", g_lorawan_settings.auto_join ? "enabled" : "disabled");
+  MYLOG("APP", "086 Fport %d", g_lorawan_settings.app_port);
+  MYLOG("APP", "087 %s Message", g_lorawan_settings.confirmed_msg_enabled ? "Confirmed" : "Unconfirmed");
+  MYLOG("APP", "088 Region %d", g_lorawan_settings.lorawan_region);
+  MYLOG("APP", "089 Mode %s", g_lorawan_settings.lorawan_enable ? "LoRaWAN" : "LoRa P2P");
+  MYLOG("APP", "092 P2P Frequency %d", g_lorawan_settings.p2p_frequency);
+  MYLOG("APP", "096 P2P TX Power %d", g_lorawan_settings.p2p_tx_power);
+  MYLOG("APP", "097 P2P Bandwidth %d", g_lorawan_settings.p2p_bandwidth);
+  MYLOG("APP", "098 P2P SF %d", g_lorawan_settings.p2p_sf);
+  MYLOG("APP", "099 P2P CR %d", g_lorawan_settings.p2p_cr);
+  MYLOG("APP", "100 P2P Preamble %d", g_lorawan_settings.p2p_preamble_len);
+  MYLOG("APP", "102 P2P Timeout %d", g_lorawan_settings.p2p_symbol_timeout);
 }

@@ -11,11 +11,26 @@
 #ifndef MAIN_H
 #define MAIN_H
 
+#define SW_VERSION 0.01
+
+// Debug output set to 0 to disable app debug output
+#define MY_DEBUG 1
+
+#if MY_DEBUG > 0
+#define MYLOG(tag, ...)           \
+	do                            \
+	{                             \
+		if (tag)                  \
+			PRINTF("[%s] ", tag); \
+		PRINTF(__VA_ARGS__);      \
+		PRINTF("\n");             \
+	} while (0)
+#else
+#define MYLOG(...)
+#endif
+
 #include <Arduino.h>
 #include <nrf_nvic.h>
-
-// Log output
-#include <myLog.h>
 
 // Main loop stuff
 void periodic_wakeup(TimerHandle_t unused);

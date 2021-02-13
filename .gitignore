@@ -3,3 +3,4 @@
 ./nrf52-LoRa-Config-BLE-Pio/.vscode/c_cpp_properties.json
 ./nrf52-LoRa-Config-BLE-Pio/.vscode/launch.json
 ./nrf52-LoRa-Config-BLE-Pio/.vscode/ipch
+nrf52-LoRa-Config-BLE-Pio/Generated

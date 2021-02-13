@@ -60,6 +60,8 @@ static lmh_app_data_t m_lora_app_data = {m_lora_app_data_buffer, 0, 0, 0, 0};
 // LoRaWAN event handlers
 /** LoRaWAN callback when join network finished */
 static void lpwan_joined_handler(void);
+/** LoRaWAN callback when join network failed */
+static void lpwan_join_fail_handler(void);
 /** LoRaWAN callback when data arrived */
 static void lpwan_rx_handler(lmh_app_data_t *app_data);
 /** LoRaWAN callback after class change request finished */
@@ -82,7 +84,8 @@ static lmh_param_t lora_param_init;
 
 /** Structure containing LoRaWan callback functions, needed for lmh_init() */
 static lmh_callback_t lora_callbacks = {BoardGetBatteryLevel, BoardGetUniqueId, BoardGetRandomSeed,
-										lpwan_rx_handler, lpwan_joined_handler, lpwan_class_confirm_handler};
+										lpwan_rx_handler, lpwan_joined_handler,
+										lpwan_class_confirm_handler, lpwan_join_fail_handler};
 
 bool lpwan_has_joined = false;
 
@@ -114,7 +117,6 @@ void lora_interrupt_handler(void)
  */
 int8_t init_lora(void)
 {
-	pinMode(LED_BUILTIN, OUTPUT);
 	digitalWrite(LED_BUILTIN, LOW);
 
 	// Create the LoRaWan event semaphore
@@ -125,7 +127,7 @@ int8_t init_lora(void)
 	// Initialize LoRa chip.
 	if (lora_rak4630_init() != 0)
 	{
-		myLog_e("Failed to initialize SX1262");
+		MYLOG("APP", "Failed to initialize SX1262");
 		return -1;
 	}
 
@@ -150,7 +152,7 @@ int8_t init_lora(void)
 		// Initialize LoRaWan
 		if (lmh_init(&lora_callbacks, lora_param_init, g_lorawan_settings.otaa_enabled) != 0)
 		{
-			myLog_e("Failed to initialize LoRaWAN");
+			MYLOG("APP", "Failed to initialize LoRaWAN");
 			return -2;
 		}
 
@@ -158,20 +160,20 @@ int8_t init_lora(void)
 		// This must be called AFTER lmh_init()
 		if (!lmh_setSubBandChannels(g_lorawan_settings.subband_channels))
 		{
-			myLog_e("lmh_setSubBandChannels failed. Wrong sub band requested?");
+			MYLOG("APP", "lmh_setSubBandChannels failed. Wrong sub band requested?");
 			return -3;
 		}
 
 		// Start the task that will handle the LoRaWan events
-		myLog_d("Starting LoRaWan task");
+		MYLOG("APP", "Starting LoRaWan task");
 		if (!xTaskCreate(lora_task, "LORA", 4096, NULL, TASK_PRIO_LOW, &loraTaskHandle))
 		{
-			myLog_e("Failed to start LoRaWAN task");
+			MYLOG("APP", "Failed to start LoRaWAN task");
 			return -4;
 		}
 
 		// Start Join procedure
-		myLog_d("Start network join request");
+		MYLOG("APP", "Start network join request");
 		lmh_join();
 	}
 	else
@@ -200,11 +202,14 @@ int8_t init_lora(void)
 						  g_lorawan_settings.p2p_symbol_timeout, false,
 						  0, true, 0, 0, false, true);
 
+		// In deep sleep we need to hijack the SX126x IRQ to trigger a wakeup of the nRF52
+		attachInterrupt(PIN_LORA_DIO_1, lora_interrupt_handler, RISING);
+
 		// Start the task that will handle the LoRaWan events
-		myLog_d("Starting LoRa task");
+		MYLOG("APP", "Starting LoRa task");
 		if (!xTaskCreate(lora_task, "LORA", 4096, NULL, TASK_PRIO_LOW, &loraTaskHandle))
 		{
-			myLog_e("Failed to start LoRa task");
+			MYLOG("APP", "Failed to start LoRa task");
 			return -4;
 		}
 
@@ -213,6 +218,8 @@ int8_t init_lora(void)
 		g_task_wakeup_timer.start();
 
 		Radio.Rx(0);
+
+		digitalWrite(LED_BUILTIN, LOW);
 
 		return 0;
 	}
@@ -262,6 +269,15 @@ void lora_task(void *pvParameters)
 /* LoRaWAN callback functions                                            */
 /**************************************************************/
 /**
+   @brief LoRa function when join has failed
+*/
+void lpwan_join_fail_handler(void)
+{
+	MYLOG("APP", "OTAA joined failed");
+	MYLOG("APP", "Check LPWAN credentials and if a gateway is in range");
+}
+
+/**
  * @brief LoRa function for handling HasJoined event.
  */
 static void lpwan_joined_handler(void)
@@ -271,11 +287,11 @@ static void lpwan_joined_handler(void)
 	if (g_lorawan_settings.otaa_enabled)
 	{
 		uint32_t otaaDevAddr = lmh_getDevAddr();
-		myLog_d("OTAA joined and got dev address %08lX\n", otaaDevAddr);
+		MYLOG("APP", "OTAA joined and got dev address %08X", otaaDevAddr);
 	}
 	else
 	{
-		myLog_d("ABP joined");
+		MYLOG("APP", "ABP joined");
 	}
 
 	// Class A is default in the LoRaWAN lib. If app needs different class, request change here
@@ -286,6 +302,15 @@ static void lpwan_joined_handler(void)
 	}
 	else
 	{
+		// Wake up task to send initial packet
+		g_task_event_type = 1;
+		// Notify task about the event
+		if (g_task_sem != NULL)
+		{
+			MYLOG("APP", "Waking up loop task");
+			xSemaphoreGive(g_task_sem);
+		}
+
 		lpwan_has_joined = true;
 	}
 
@@ -301,8 +326,8 @@ static void lpwan_joined_handler(void)
  */
 static void lpwan_rx_handler(lmh_app_data_t *app_data)
 {
-	myLog_d("LoRa Packet received on port %d, size:%d, rssi:%d, snr:%d\n",
-			app_data->port, app_data->buffsize, app_data->rssi, app_data->snr);
+	MYLOG("APP", "LoRa Packet received on port %d, size:%d, rssi:%d, snr:%d",
+		  app_data->port, app_data->buffsize, app_data->rssi, app_data->snr);
 
 	switch (app_data->port)
 	{
@@ -314,17 +339,17 @@ static void lpwan_rx_handler(lmh_app_data_t *app_data)
 			{
 			case 0:
 				lmh_class_request(CLASS_A);
-				myLog_d("Request to switch to class A");
+				MYLOG("APP", "Request to switch to class A");
 				break;
 
 			case 1:
 				lmh_class_request(CLASS_B);
-				myLog_d("Request to switch to class B");
+				MYLOG("APP", "Request to switch to class B");
 				break;
 
 			case 2:
 				lmh_class_request(CLASS_C);
-				myLog_d("Request to switch to class C");
+				MYLOG("APP", "Request to switch to class C");
 				break;
 
 			default:
@@ -340,7 +365,7 @@ static void lpwan_rx_handler(lmh_app_data_t *app_data)
 		// Notify task about the event
 		if (g_task_sem != NULL)
 		{
-			myLog_d("Waking up loop task");
+			MYLOG("APP", "Waking up loop task");
 			xSemaphoreGive(g_task_sem);
 		}
 	}
@@ -353,13 +378,16 @@ static void lpwan_rx_handler(lmh_app_data_t *app_data)
  */
 static void lpwan_class_confirm_handler(DeviceClass_t Class)
 {
-	myLog_d("switch to class %c done\n", "ABC"[Class]);
+	MYLOG("APP", "switch to class %c done", "ABC"[Class]);
 
-	// Informs the server that switch has occurred ASAP
-	m_lora_app_data.buffsize = 0;
-	m_lora_app_data.port = g_lorawan_settings.app_port;
-	lmh_send(&m_lora_app_data, LMH_UNCONFIRMED_MSG);
-
+	// Wake up task to send initial packet
+	g_task_event_type = 1;
+	// Notify task about the event
+	if (g_task_sem != NULL)
+	{
+		MYLOG("APP", "Waking up loop task");
+		xSemaphoreGive(g_task_sem);
+	}
 	lpwan_has_joined = true;
 }
 
@@ -375,7 +403,7 @@ bool send_lpwan_packet(void)
 		if (lmh_join_status_get() != LMH_SET)
 		{
 			//Not joined, try again later
-			myLog_d("Did not join network, skip sending frame");
+			MYLOG("APP", "Did not join network, skip sending frame");
 			return false;
 		}
 
@@ -409,7 +437,9 @@ bool send_lpwan_packet(void)
  */
 void on_tx_done(void)
 {
-	myLog_d("OnTxDone");
+	MYLOG("APP", "OnTxDone");
+	// Send LoRa handler back to sleep
+	xSemaphoreTake(lora_sem, 10);
 	Radio.Rx(0);
 }
 
@@ -417,14 +447,18 @@ void on_tx_done(void)
  */
 void on_rx_done(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr)
 {
-	myLog_d("OnRxDone");
+	MYLOG("APP", "OnRxDone");
 
 	delay(10);
 
+	// Copy the data into loop data buffer
+	memcpy(g_rx_lora_data, payload, size);
+	g_rx_data_len = size;
 	g_task_event_type = 0;
 	// Notify task about the event
 	if (g_task_sem != NULL)
 	{
+		MYLOG("APP", "Waking up loop task");
 		xSemaphoreGive(g_task_sem);
 	}
 
@@ -435,7 +469,7 @@ void on_rx_done(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr)
  */
 void on_tx_timeout(void)
 {
-	myLog_d("OnTxTimeout");
+	MYLOG("APP", "OnTxTimeout");
 
 	Radio.Rx(0);
 }
@@ -444,7 +478,7 @@ void on_tx_timeout(void)
  */
 void on_rx_timeout(void)
 {
-	myLog_d("OnRxTimeout");
+	MYLOG("APP", "OnRxTimeout");
 
 	Radio.Rx(0);
 }
@@ -488,9 +522,7 @@ void send_lora_packet(void)
 	Radio.SetCadParams(LORA_CAD_08_SYMBOL, g_lorawan_settings.p2p_sf + 13, 10, LORA_CAD_ONLY, 0);
 
 	// Switch on Indicator lights
-#if MYLOG_LOG_LEVEL > MYLOG_LOG_LEVEL_NONE
 	digitalWrite(LED_CONN, HIGH);
-#endif
 
 	// Start CAD
 	Radio.StartCad();

@@ -60,7 +60,7 @@ void setup()
 	pinMode(LED_CONN, OUTPUT);
 	digitalWrite(LED_CONN, HIGH);
 
-#if MYLOG_LOG_LEVEL > MYLOG_LOG_LEVEL_NONE
+#ifdef MY_DEBUG> 0
 	// Initialize Serial for debug output
 	Serial.begin(115200);
 
@@ -78,14 +78,13 @@ void setup()
 			break;
 		}
 	}
-
 #endif
 
 	digitalWrite(LED_BUILTIN, HIGH);
 
-	myLog_w("=====================================");
-	myLog_w("RAK4631 LoRaWan BLE Config Test");
-	myLog_w("=====================================");
+	MYLOG("APP", "=====================================");
+	MYLOG("APP", "RAK4631 LoRaWan BLE Config Test");
+	MYLOG("APP", "=====================================");
 
 	// Get LoRaWAN parameter
 	init_flash();
@@ -96,27 +95,27 @@ void setup()
 	// Check if auto join is enabled
 	if (g_lorawan_settings.auto_join)
 	{
-		myLog_d("Auto join is enabled, start LoRaWAN and join");
+		MYLOG("APP", "Auto join is enabled, start LoRaWAN and join");
 		// Initialize LoRaWan and start join request
 		int8_t lora_init_result = init_lora();
 
 		if (lora_init_result != 0)
 		{
-			myLog_d("Init LoRa failed");
+			MYLOG("APP", "Init LoRa failed");
 
 			// Without working LoRa we just stop here
 			while (1)
 			{
-				myLog_e("Nothing I can do, just loving you");
+				MYLOG("APP", "Nothing I can do, just loving you");
 				digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
 				delay(5000);
 			}
 		}
-		myLog_d("LoRaWan init success");
+		MYLOG("APP", "LoRaWan init success");
 	}
 	else
 	{
-		myLog_d("Auto join is disabled, waiting for connect command");
+		MYLOG("APP", "Auto join is disabled, waiting for connect command");
 		delay(100);
 	}
 
@@ -130,56 +129,53 @@ void setup()
  */
 void loop()
 {
-	// Switch off blue LED to show we go to sleep
-	digitalWrite(LED_BUILTIN, LOW);
 	// Sleep until we are woken up by an event
 	if (xSemaphoreTake(g_task_sem, portMAX_DELAY) == pdTRUE)
 	{
 		// Switch on blue LED to show we are awake
 		digitalWrite(LED_BUILTIN, HIGH);
-		delay(500); // Only so we can see the blue LED
 		switch (g_task_event_type)
 		{
 		case 0:
-			myLog_d("Received package over LoRaWan");
+			MYLOG("APP", "Received package over LoRaWan");
 			if (g_rx_lora_data[0] > 0x1F)
 			{
-				myLog_d("%s\n", (char *)g_rx_lora_data);
+				MYLOG("APP", "%s", (char *)g_rx_lora_data);
 			}
 			else
 			{
 				for (int idx = 0; idx < g_rx_data_len; idx++)
 				{
-					myLog_d("%X ", g_rx_lora_data[idx]);
+					MYLOG("APP", "%X ", g_rx_lora_data[idx]);
 				}
 			}
 
 			break;
 		case 1:
-			myLog_d("Timer wakeup");
+			MYLOG("APP", "Timer wakeup");
 			/// \todo read sensor or whatever you need to do frequently
 
 			if (g_lorawan_settings.lorawan_enable)
 			{ // Send the data package
 				if (send_lpwan_packet())
 				{
-					myLog_d("LoRaWan package sent successfully");
+					MYLOG("APP", "LoRaWan package sent successfully");
 				}
 				else
 				{
-					myLog_d("LoRaWan package send failed");
+					MYLOG("APP", "LoRaWan package send failed");
 					/// \todo maybe you need to retry here?
 				}
 			}
 			else
 			{
 				send_lora_packet();
-				myLog_d("LoRa package sent");
+				MYLOG("APP", "LoRa package sent");
 			}
 
 			break;
 		case 2:
-			myLog_d("Config received over BLE");
+			MYLOG("APP", "Config received over BLE");
 			delay(100);
 
 			// Inform connected device about new settings
@@ -193,10 +189,13 @@ void loop()
 			}
 			break;
 		default:
-			myLog_e("This should never happen ;-)");
+			MYLOG("APP", "This should never happen ;-)");
 			break;
 		}
+		delay(500); // Only so we can see the blue LED
 		// Go back to sleep
 		xSemaphoreTake(g_task_sem, 10);
+		// Switch off blue LED to show we go to sleep
+		digitalWrite(LED_BUILTIN, LOW);
 	}
 }

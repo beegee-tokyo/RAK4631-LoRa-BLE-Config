@@ -50,7 +50,7 @@ void init_settings_characteristic(void)
  */
 void settings_rx_callback(uint16_t conn_hdl, BLECharacteristic *chr, uint8_t *data, uint16_t len)
 {
-	myLog_d("Settings received");
+	MYLOG("APP", "Settings received");
 
 	delay(1000);
 
@@ -59,14 +59,14 @@ void settings_rx_callback(uint16_t conn_hdl, BLECharacteristic *chr, uint8_t *da
 	{
 		if (len != sizeof(s_lorawan_settings))
 		{
-			myLog_e("Received settings have wrong size %d", len);
+			MYLOG("APP", "Received settings have wrong size %d", len);
 			return;
 		}
 
 		s_lorawan_settings *rcvdSettings = (s_lorawan_settings *)data;
 		if ((rcvdSettings->valid_mark_1 != 0xAA) || (rcvdSettings->valid_mark_2 != 0x55))
 		{
-			myLog_e("Received settings data do not have required markers");
+			MYLOG("APP", "Received settings data do not have required markers");
 			return;
 		}
 
@@ -84,7 +84,7 @@ void settings_rx_callback(uint16_t conn_hdl, BLECharacteristic *chr, uint8_t *da
 
 		if (g_lorawan_settings.resetRequest)
 		{
-			myLog_d("Initiate reset");
+			MYLOG("APP", "Initiate reset");
 			delay(1000);
 			sd_nvic_SystemReset();
 		}
@@ -93,7 +93,7 @@ void settings_rx_callback(uint16_t conn_hdl, BLECharacteristic *chr, uint8_t *da
 		if (g_task_sem != NULL)
 		{
 			g_task_event_type = 2;
-			myLog_d("Waking up loop task");
+			MYLOG("APP", "Waking up loop task");
 			xSemaphoreGive(g_task_sem);
 		}
 	}
