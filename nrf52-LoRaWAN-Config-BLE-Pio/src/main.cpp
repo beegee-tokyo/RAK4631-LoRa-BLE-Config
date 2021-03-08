@@ -149,30 +149,29 @@ void loop()
 					MYLOG("APP", "%X ", g_rx_lora_data[idx]);
 				}
 			}
-
+			if (ble_uart_is_connected)
+			{
+				for (int idx = 0; idx < g_rx_data_len; idx++)
+				{
+					ble_uart.printf("%02X ", g_rx_lora_data[idx]);
+				}
+				ble_uart.println("");
+			}
 			break;
 		case 1:
 			MYLOG("APP", "Timer wakeup");
 			/// \todo read sensor or whatever you need to do frequently
 
-			if (g_lorawan_settings.lorawan_enable)
-			{ // Send the data package
-				if (send_lpwan_packet())
-				{
-					MYLOG("APP", "LoRaWan package sent successfully");
-				}
-				else
-				{
-					MYLOG("APP", "LoRaWan package send failed");
-					/// \todo maybe you need to retry here?
-				}
+			// Send the data package
+			if (send_lpwan_packet())
+			{
+				MYLOG("APP", "LoRaWan package sent successfully");
 			}
 			else
 			{
-				send_lora_packet();
-				MYLOG("APP", "LoRa package sent");
+				MYLOG("APP", "LoRaWan package send failed");
+				/// \todo maybe you need to retry here?
 			}
-
 			break;
 		case 2:
 			MYLOG("APP", "Config received over BLE");

@@ -1,7 +1,7 @@
 /**
    @file main.cpp
    @author Bernd Giesecke (bernd.giesecke@rakwireless.com)
-   @brief LoRaWAN configuration over BLE
+   @brief LoRa configuration over BLE
    @version 0.1
    @date 2021-01-10
 
@@ -20,7 +20,7 @@ SoftwareTimer g_task_wakeup_timer;
 /**
    @brief Flag for the event type
    -1 => no event
-   0 => LoRaWan data received
+   0 => LoRa data received
    1 => Timer wakeup
    3 => Received configuration over BLE
    2 => tbd
@@ -47,7 +47,7 @@ void periodic_wakeup(TimerHandle_t unused)
 */
 void setup()
 {
-  // Create the LoRaWan event semaphore
+  // Create the task event semaphore
   g_task_sem = xSemaphoreCreateBinary();
   // Initialize semaphore
   xSemaphoreGive(g_task_sem);
@@ -83,20 +83,20 @@ void setup()
   digitalWrite(LED_BUILTIN, HIGH);
 
   MYLOG("APP", "=====================================");
-  MYLOG("APP", "RAK4631 LoRaWan BLE Config Test");
+  MYLOG("APP", "RAK4631 LoRa BLE Config Test");
   MYLOG("APP", "=====================================");
 
-  // Get LoRaWAN parameter
+  // Get LoRa parameter
   init_flash();
 
   // Init BLE
   init_ble();
 
   // Check if auto join is enabled
-  if (g_lorawan_settings.auto_join)
+  if (g_lorap2p_settings.auto_join)
   {
-    MYLOG("APP", "Auto join is enabled, start LoRaWAN and join");
-    // Initialize LoRaWan and start join request
+    MYLOG("APP", "Auto join is enabled, start LoRa and join");
+    // Initialize LoRa and start join request
     int8_t lora_init_result = init_lora();
 
     if (lora_init_result != 0)
@@ -111,7 +111,7 @@ void setup()
         delay(5000);
       }
     }
-    MYLOG("APP", "LoRaWan init success");
+    MYLOG("APP", "LoRa init success");
   }
   else
   {
@@ -137,7 +137,7 @@ void loop()
     switch (g_task_event_type)
     {
       case 0:
-        MYLOG("APP", "Received package over LoRaWan");
+        MYLOG("APP", "Received package over LoRa");
         if (g_rx_lora_data[0] > 0x1F)
         {
           MYLOG("APP", "%s", (char *)g_rx_lora_data);
@@ -149,29 +149,21 @@ void loop()
             MYLOG("APP", "%X ", g_rx_lora_data[idx]);
           }
         }
-
+        if (ble_uart_is_connected)
+        {
+          for (int idx = 0; idx < g_rx_data_len; idx++)
+          {
+            ble_uart.printf("%02X ", g_rx_lora_data[idx]);
+          }
+          ble_uart.println("");
+        }
         break;
       case 1:
         MYLOG("APP", "Timer wakeup");
         /// \todo read sensor or whatever you need to do frequently
 
-        if (g_lorawan_settings.lorawan_enable)
-        { // Send the data package
-          if (send_lpwan_packet())
-          {
-            MYLOG("APP", "LoRaWan package sent successfully");
-          }
-          else
-          {
-            MYLOG("APP", "LoRaWan package send failed");
-            /// \todo maybe you need to retry here?
-          }
-        }
-        else
-        {
-          send_lora_packet();
-          MYLOG("APP", "LoRa package sent");
-        }
+        send_lora_packet();
+        MYLOG("APP", "LoRa package sent");
 
         break;
       case 2:
@@ -179,11 +171,11 @@ void loop()
         delay(100);
 
         // Inform connected device about new settings
-        lorawan_data.write((void *)&g_lorawan_settings, sizeof(s_lorawan_settings));
-        lorawan_data.notify((void *)&g_lorawan_settings, sizeof(s_lorawan_settings));
+        lora_data.write((void *)&g_lorap2p_settings, sizeof(s_lorap2p_settings));
+        lora_data.notify((void *)&g_lorap2p_settings, sizeof(s_lorap2p_settings));
 
         // Check if auto connect is enabled
-        if ((g_lorawan_settings.auto_join) && !g_lorawan_initialized)
+        if ((g_lorap2p_settings.auto_join) && !g_lorap2p_initialized)
         {
           init_lora();
         }

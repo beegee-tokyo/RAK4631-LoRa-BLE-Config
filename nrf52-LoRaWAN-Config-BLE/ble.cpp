@@ -40,7 +40,7 @@ void init_ble(void)
   // more SRAM required by SoftDevice
   // Note: All config***() function must be called before begin()
   Bluefruit.configPrphBandwidth(BANDWIDTH_MAX);
-  Bluefruit.configPrphConn(131, BLE_GAP_EVENT_LENGTH_MIN, 16, 16);
+  Bluefruit.configPrphConn(91, BLE_GAP_EVENT_LENGTH_MIN, 16, 16);
 
   // Start BLE
   Bluefruit.begin(1, 0);
@@ -53,9 +53,17 @@ void init_ble(void)
 
   uint32_t addr_high = ((*((uint32_t *)(0x100000a8))) & 0x0000ffff) | 0x0000c000;
   uint32_t addr_low = *((uint32_t *)(0x100000a4));
+#ifdef _VARIANT_ISP4520_
+  /** DIO1 GPIO pin for ISP4520 */
+  sprintf(helper_string, "ISP-%02X%02X%02X%02X%02X%02X",
+          (uint8_t)(addr_high), (uint8_t)(addr_high >> 8), (uint8_t)(addr_low),
+          (uint8_t)(addr_low >> 8), (uint8_t)(addr_low >> 16), (uint8_t)(addr_low >> 24));
+#else
+  /** DIO1 GPIO pin for RAK4631 */
   sprintf(helper_string, "RAK-%02X%02X%02X%02X%02X%02X",
           (uint8_t)(addr_high), (uint8_t)(addr_high >> 8), (uint8_t)(addr_low),
           (uint8_t)(addr_low >> 8), (uint8_t)(addr_low >> 16), (uint8_t)(addr_low >> 24));
+#endif
 
   Bluefruit.setName(helper_string);
 

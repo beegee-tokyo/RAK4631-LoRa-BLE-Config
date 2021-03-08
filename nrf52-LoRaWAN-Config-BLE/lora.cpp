@@ -11,8 +11,13 @@
 
 #include "main.h"
 
+#ifdef _VARIANT_ISP4520_
+/** DIO1 GPIO pin for ISP4520 */
+#define PIN_LORA_DIO_1 11
+#else
 /** DIO1 GPIO pin for RAK4631 */
 #define PIN_LORA_DIO_1 47
+#endif
 
 /** LoRaWAN setting from flash */
 s_lorawan_settings g_lorawan_settings;
@@ -36,18 +41,6 @@ uint8_t g_tx_data_len = 0;
 
 /** Flag if LoRaWAN is initialized and started */
 bool g_lorawan_initialized = false;
-
-/**************************************************************/
-/* LoRa properties                                            */
-/**************************************************************/
-// LoRa callbacks
-static RadioEvents_t RadioEvents;
-void on_tx_done(void);
-void on_rx_done(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr);
-void on_tx_timeout(void);
-void on_rx_timeout(void);
-void on_rx_crc_error(void);
-void on_cad_done(bool cadResult);
 
 /**************************************************************/
 /* LoRaWAN properties                                            */
@@ -130,96 +123,72 @@ int8_t init_lora(void)
     return -1;
   }
 
-  if (g_lorawan_settings.lorawan_enable)
+  // // Initialize the Radio
+  // RadioEvents.TxDone = on_tx_done;
+  // RadioEvents.RxDone = on_rx_done;
+  // RadioEvents.TxTimeout = on_tx_timeout;
+  // RadioEvents.RxTimeout = on_rx_timeout;
+  // RadioEvents.RxError = on_rx_crc_error;
+  // RadioEvents.CadDone = on_cad_done;
+
+  // Radio.Init(&RadioEvents);
+
+  // Radio.SetChannel(g_lorawan_settings.p2p_frequency);
+
+  // Radio.SetTxConfig(MODEM_LORA, g_lorawan_settings.p2p_tx_power, 0, g_lorawan_settings.p2p_bandwidth,
+  // 				  g_lorawan_settings.p2p_sf, g_lorawan_settings.p2p_cr,
+  // 				  g_lorawan_settings.p2p_preamble_len, false,
+  // 				  true, 0, 0, false, 5000);
+
+  // Radio.SetRxConfig(MODEM_LORA, g_lorawan_settings.p2p_bandwidth, g_lorawan_settings.p2p_sf,
+  // 				  g_lorawan_settings.p2p_cr, 0, g_lorawan_settings.p2p_preamble_len,
+  // 				  g_lorawan_settings.p2p_symbol_timeout, false,
+  // 				  0, true, 0, 0, false, true);
+
+  // Radio.Sleep(); // Radio.Standby();
+
+  // Setup the EUIs and Keys
+  lmh_setDevEui(g_lorawan_settings.node_device_eui);
+  lmh_setAppEui(g_lorawan_settings.node_app_eui);
+  lmh_setAppKey(g_lorawan_settings.node_app_key);
+  lmh_setNwkSKey(g_lorawan_settings.node_nws_key);
+  lmh_setAppSKey(g_lorawan_settings.node_apps_key);
+  lmh_setDevAddr(g_lorawan_settings.node_dev_addr);
+
+  // Setup the LoRaWan init structure
+  lora_param_init.adr_enable = g_lorawan_settings.adr_enabled;
+  lora_param_init.tx_data_rate = g_lorawan_settings.data_rate;
+  lora_param_init.enable_public_network = g_lorawan_settings.public_network;
+  lora_param_init.nb_trials = g_lorawan_settings.join_trials;
+  lora_param_init.tx_power = g_lorawan_settings.tx_power;
+  lora_param_init.duty_cycle = g_lorawan_settings.duty_cycle_enabled;
+
+  // Initialize LoRaWan
+  if (lmh_init(&lora_callbacks, lora_param_init, g_lorawan_settings.otaa_enabled) != 0)
   {
-    // Setup the EUIs and Keys
-    lmh_setDevEui(g_lorawan_settings.node_device_eui);
-    lmh_setAppEui(g_lorawan_settings.node_app_eui);
-    lmh_setAppKey(g_lorawan_settings.node_app_key);
-    lmh_setNwkSKey(g_lorawan_settings.node_nws_key);
-    lmh_setAppSKey(g_lorawan_settings.node_apps_key);
-    lmh_setDevAddr(g_lorawan_settings.node_dev_addr);
-
-    // Setup the LoRaWan init structure
-    lora_param_init.adr_enable = g_lorawan_settings.adr_enabled;
-    lora_param_init.tx_data_rate = g_lorawan_settings.data_rate;
-    lora_param_init.enable_public_network = g_lorawan_settings.public_network;
-    lora_param_init.nb_trials = g_lorawan_settings.join_trials;
-    lora_param_init.tx_power = g_lorawan_settings.tx_power;
-    lora_param_init.duty_cycle = g_lorawan_settings.duty_cycle_enabled;
-
-    // Initialize LoRaWan
-    if (lmh_init(&lora_callbacks, lora_param_init, g_lorawan_settings.otaa_enabled) != 0)
-    {
-      MYLOG("LORA", "Failed to initialize LoRaWAN");
-      return -2;
-    }
-
-    // For some regions we might need to define the sub band the gateway is listening to
-    // This must be called AFTER lmh_init()
-    if (!lmh_setSubBandChannels(g_lorawan_settings.subband_channels))
-    {
-      MYLOG("LORA", "lmh_setSubBandChannels failed. Wrong sub band requested?");
-      return -3;
-    }
-
-    // Start the task that will handle the LoRaWan events
-    MYLOG("LORA", "Starting LoRaWan task");
-    if (!xTaskCreate(lora_task, "LORA", 4096, NULL, TASK_PRIO_LOW, &loraTaskHandle))
-    {
-      MYLOG("LORA", "Failed to start LoRaWAN task");
-      return -4;
-    }
-
-    // Start Join procedure
-    MYLOG("LORA", "Start network join request");
-    lmh_join();
+    MYLOG("LORA", "Failed to initialize LoRaWAN");
+    return -2;
   }
-  else
+
+  // For some regions we might need to define the sub band the gateway is listening to
+  // This must be called AFTER lmh_init()
+  if (!lmh_setSubBandChannels(g_lorawan_settings.subband_channels))
   {
-    // Initialize the Radio
-    RadioEvents.TxDone = on_tx_done;
-    RadioEvents.RxDone = on_rx_done;
-    RadioEvents.TxTimeout = on_tx_timeout;
-    RadioEvents.RxTimeout = on_rx_timeout;
-    RadioEvents.RxError = on_rx_crc_error;
-    RadioEvents.CadDone = on_cad_done;
-
-    Radio.Init(&RadioEvents);
-
-    Radio.Sleep(); // Radio.Standby();
-
-    Radio.SetChannel(g_lorawan_settings.p2p_frequency);
-
-    Radio.SetTxConfig(MODEM_LORA, g_lorawan_settings.p2p_tx_power, 0, g_lorawan_settings.p2p_bandwidth,
-                      g_lorawan_settings.p2p_sf, g_lorawan_settings.p2p_cr,
-                      g_lorawan_settings.p2p_preamble_len, false,
-                      true, 0, 0, false, 5000);
-
-    Radio.SetRxConfig(MODEM_LORA, g_lorawan_settings.p2p_bandwidth, g_lorawan_settings.p2p_sf,
-                      g_lorawan_settings.p2p_cr, 0, g_lorawan_settings.p2p_preamble_len,
-                      g_lorawan_settings.p2p_symbol_timeout, false,
-                      0, true, 0, 0, false, true);
-
-    // In deep sleep we need to hijack the SX126x IRQ to trigger a wakeup of the nRF52
-    attachInterrupt(PIN_LORA_DIO_1, lora_interrupt_handler, RISING);
-
-    // Start the task that will handle the LoRaWan events
-    MYLOG("LORA", "Starting LoRa task");
-    if (!xTaskCreate(lora_task, "LORA", 4096, NULL, TASK_PRIO_LOW, &loraTaskHandle))
-    {
-      MYLOG("LORA", "Failed to start LoRa task");
-      return -4;
-    }
-
-    // LoRa is setup, start the timer that will wakeup the loop frequently
-    g_task_wakeup_timer.begin(g_lorawan_settings.send_repeat_time, periodic_wakeup);
-    g_task_wakeup_timer.start();
-
-    Radio.Rx(0);
-
-    digitalWrite(LED_BUILTIN, LOW);
+    MYLOG("LORA", "lmh_setSubBandChannels failed. Wrong sub band requested?");
+    return -3;
   }
+
+  // Start the task that will handle the LoRaWan events
+  MYLOG("LORA", "Starting LoRaWan task");
+  if (!xTaskCreate(lora_task, "LORA", 4096, NULL, TASK_PRIO_LOW, &loraTaskHandle))
+  {
+    MYLOG("LORA", "Failed to start LoRaWAN task");
+    return -4;
+  }
+
+  // Start Join procedure
+  MYLOG("LORA", "Start network join request");
+  lmh_join();
 
   g_lorawan_initialized = true;
   return 0;
@@ -234,7 +203,7 @@ void lora_task(void *pvParameters)
 {
   while (1)
   {
-    if ((g_lorawan_settings.lorawan_enable) && !lpwan_has_joined)
+    if (!lpwan_has_joined)
     {
       Radio.IrqProcess();
       delay(100);
@@ -272,7 +241,7 @@ void lpwan_join_fail_handler(void)
 {
   MYLOG("LORA", "OTAA joined failed");
   MYLOG("LORA", "Check LPWAN credentials and if a gateway is in range");
-
+  // Restart Join procedure
   MYLOG("LORA", "Restart network join request");
   lmh_join();
 }
@@ -391,8 +360,6 @@ static void lpwan_class_confirm_handler(DeviceClass_t Class)
   lpwan_has_joined = true;
 }
 
-uint8_t packet_counter = 0;
-
 /**
    @brief Send a LoRaWan package
 
@@ -400,136 +367,26 @@ uint8_t packet_counter = 0;
 */
 bool send_lpwan_packet(void)
 {
-  if (g_lorawan_settings.lorawan_enable)
+  if (lmh_join_status_get() != LMH_SET)
   {
-    if (lmh_join_status_get() != LMH_SET)
-    {
-      //Not joined, try again later
-      MYLOG("LORA", "Did not join network, skip sending frame");
-      return false;
-    }
-
-    m_lora_app_data.port = LORAWAN_APP_PORT;
-
-    /// \todo here some more usefull data should be put into the package
-    uint8_t buffSize = 0;
-    m_lora_app_data_buffer[buffSize++] = packet_counter;
-    m_lora_app_data_buffer[buffSize++] = packet_counter;
-    m_lora_app_data_buffer[buffSize++] = packet_counter;
-    m_lora_app_data_buffer[buffSize++] = packet_counter;
-    m_lora_app_data_buffer[buffSize++] = packet_counter;
-
-    packet_counter++;
-
-    m_lora_app_data.buffsize = buffSize;
-
-    lmh_error_status error = lmh_send(&m_lora_app_data, g_lorawan_settings.confirmed_msg_enabled);
-
-    return (error == 0);
-  }
-  else
-  {
-    return true;
-  }
-}
-
-/**************************************************************/
-/* LoRa properties                                            */
-/**************************************************************/
-/**
-   @brief Function to be executed on Radio Tx Done event
-*/
-void on_tx_done(void)
-{
-  MYLOG("LORA", "OnTxDone");
-  // Send LoRa handler back to sleep
-  xSemaphoreTake(lora_sem, 10);
-  Radio.Rx(0);
-}
-
-/**@brief Function to be executed on Radio Rx Done event
-*/
-void on_rx_done(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr)
-{
-  MYLOG("LORA", "OnRxDone");
-
-  delay(10);
-
-  // Copy the data into loop data buffer
-  memcpy(g_rx_lora_data, payload, size);
-  g_rx_data_len = size;
-  g_task_event_type = 0;
-  // Notify task about the event
-  if (g_task_sem != NULL)
-  {
-    MYLOG("LORA", "Waking up loop task");
-    xSemaphoreGive(g_task_sem);
+    //Not joined, try again later
+    MYLOG("LORA", "Did not join network, skip sending frame");
+    return false;
   }
 
-  Radio.Rx(0);
-}
+  m_lora_app_data.port = LORAWAN_APP_PORT;
 
-/**@brief Function to be executed on Radio Tx Timeout event
-*/
-void on_tx_timeout(void)
-{
-  MYLOG("LORA", "OnTxTimeout");
+  /// \todo here some more usefull data should be put into the package
+  uint8_t buffSize = 0;
+  m_lora_app_data_buffer[buffSize++] = 'H';
+  m_lora_app_data_buffer[buffSize++] = 'e';
+  m_lora_app_data_buffer[buffSize++] = 'l';
+  m_lora_app_data_buffer[buffSize++] = 'l';
+  m_lora_app_data_buffer[buffSize++] = 'o';
 
-  Radio.Rx(0);
-}
+  m_lora_app_data.buffsize = buffSize;
 
-/**@brief Function to be executed on Radio Rx Timeout event
-*/
-void on_rx_timeout(void)
-{
-  MYLOG("LORA", "OnRxTimeout");
+  lmh_error_status error = lmh_send(&m_lora_app_data, g_lorawan_settings.confirmed_msg_enabled);
 
-  Radio.Rx(0);
-}
-
-/**@brief Function to be executed on Radio Rx Error event
-*/
-void on_rx_crc_error(void)
-{
-  Radio.Rx(0);
-}
-
-/**@brief Function to be executed on Radio Rx Error event
-*/
-void on_cad_done(bool cadResult)
-{
-  if (cadResult)
-  {
-    Radio.Rx(0);
-  }
-  else
-  {
-    Radio.Send(g_tx_lora_data, g_tx_data_len);
-  }
-}
-
-/**
-   @brief Prepare packet to be sent and start CAD routine
-
-*/
-void send_lora_packet(void)
-{
-  g_tx_data_len = 0;
-  g_tx_lora_data[g_tx_data_len++] = packet_counter;
-  g_tx_lora_data[g_tx_data_len++] = packet_counter;
-  g_tx_lora_data[g_tx_data_len++] = packet_counter;
-  g_tx_lora_data[g_tx_data_len++] = packet_counter;
-  g_tx_lora_data[g_tx_data_len++] = packet_counter;
-
-  packet_counter++;
-
-  // Prepare LoRa CAD
-  Radio.Sleep();
-  Radio.SetCadParams(LORA_CAD_08_SYMBOL, g_lorawan_settings.p2p_sf + 13, 10, LORA_CAD_ONLY, 0);
-
-  // Switch on Indicator lights
-  digitalWrite(LED_BUILTIN, HIGH);
-
-  // Start CAD
-  Radio.StartCad();
+  return (error == 0);
 }

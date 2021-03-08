@@ -43,7 +43,7 @@ void init_flash(void)
 	}
 	file.read((uint8_t *)&g_lorawan_settings, sizeof(s_lorawan_settings));
 	file.close();
-	// Check if it is LoRa P2P settings
+	// Check if it is LoRaWAN settings
 	if ((g_lorawan_settings.valid_mark_1 != 0xAA) || (g_lorawan_settings.valid_mark_2 != LORAWAN_DATA_MARKER))
 	{
 		// Data is not valid, reset to defaults
@@ -121,6 +121,10 @@ void log_settings(void)
 	MYLOG("FLASH", "Saved settings:");
 	MYLOG("FLASH", "%03d Marks: %02X %02X", index, g_lorawan_settings.valid_mark_1, g_lorawan_settings.valid_mark_2);
 	index += 2;
+	MYLOG("FLASH", "%03d Auto join %s", index, g_lorawan_settings.auto_join ? "enabled" : "disabled");
+	index += 1;
+	MYLOG("FLASH", "%03d OTAA %s", index, g_lorawan_settings.otaa_enabled ? "enabled" : "disabled");
+	index += 1;
 	MYLOG("FLASH", "%03d Dev EUI %02X %02X %02X %02X %02X %02X %02X %02X", index, g_lorawan_settings.node_device_eui[0], g_lorawan_settings.node_device_eui[1],
 		  g_lorawan_settings.node_device_eui[2], g_lorawan_settings.node_device_eui[3],
 		  g_lorawan_settings.node_device_eui[4], g_lorawan_settings.node_device_eui[5],
@@ -142,8 +146,6 @@ void log_settings(void)
 		  g_lorawan_settings.node_app_key[12], g_lorawan_settings.node_app_key[13],
 		  g_lorawan_settings.node_app_key[14], g_lorawan_settings.node_app_key[15]);
 	index += 16;
-	MYLOG("FLASH", "%03d Dev Addr %08lX", index, g_lorawan_settings.node_dev_addr);
-	index += 4;
 	MYLOG("FLASH", "%03d NWS Key %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X",
 		  index,
 		  g_lorawan_settings.node_nws_key[0], g_lorawan_settings.node_nws_key[1],
@@ -166,16 +168,16 @@ void log_settings(void)
 		  g_lorawan_settings.node_apps_key[12], g_lorawan_settings.node_apps_key[13],
 		  g_lorawan_settings.node_apps_key[14], g_lorawan_settings.node_apps_key[15]);
 	index += 16;
-	MYLOG("FLASH", "%03d OTAA %s", index, g_lorawan_settings.otaa_enabled ? "enabled" : "disabled");
-	index += 1;
+	MYLOG("FLASH", "%03d Dev Addr %08lX", index, g_lorawan_settings.node_dev_addr);
+	index += 4;
+	MYLOG("FLASH", "%03d Repeat time %ld", index, g_lorawan_settings.send_repeat_time);
+	index += 4;
 	MYLOG("FLASH", "%03d ADR %s", index, g_lorawan_settings.adr_enabled ? "enabled" : "disabled");
 	index += 1;
 	MYLOG("FLASH", "%03d %s Network", index, g_lorawan_settings.public_network ? "Public" : "Private");
 	index += 1;
 	MYLOG("FLASH", "%03d Dutycycle %s", index, g_lorawan_settings.duty_cycle_enabled ? "enabled" : "disabled");
 	index += 1;
-	MYLOG("FLASH", "%03d Repeat time %ld", index, g_lorawan_settings.send_repeat_time);
-	index += 4;
 	MYLOG("FLASH", "%03d Join trials %d", index, g_lorawan_settings.join_trials);
 	index += 1;
 	MYLOG("FLASH", "%03d TX Power %d", index, g_lorawan_settings.tx_power);
@@ -186,27 +188,20 @@ void log_settings(void)
 	index += 1;
 	MYLOG("FLASH", "%03d Subband %d", index, g_lorawan_settings.subband_channels);
 	index += 1;
-	MYLOG("FLASH", "%03d Auto join %s", index, g_lorawan_settings.auto_join ? "enabled" : "disabled");
-	index += 1;
 	MYLOG("FLASH", "%03d Fport %d", index, g_lorawan_settings.app_port);
 	index += 1;
 	MYLOG("FLASH", "%03d %s Message", index, g_lorawan_settings.confirmed_msg_enabled ? "Confirmed" : "Unconfirmed");
-	index += 1;
-	MYLOG("FLASH", "%03d Region %d", index, g_lorawan_settings.lorawan_region);
-	index += 1;
-	MYLOG("FLASH", "%03d Mode %s", index, g_lorawan_settings.lorawan_enable ? "LoRaWAN" : "LoRa P2P");
-	index += 1;
-	MYLOG("FLASH", "%03d P2P Frequency %d", index, g_lorawan_settings.p2p_frequency);
-	index += 4;
-	MYLOG("FLASH", "%03d P2P TX Power %d", index, g_lorawan_settings.p2p_tx_power);
-	index += 1;
-	MYLOG("FLASH", "%03d P2P Bandwidth %d", index, g_lorawan_settings.p2p_bandwidth);
-	index += 1;
-	MYLOG("FLASH", "%03d P2P SF %d", index, g_lorawan_settings.p2p_sf);
-	index += 1;
-	MYLOG("FLASH", "%03d P2P CR %d", index, g_lorawan_settings.p2p_cr);
-	index += 1;
-	MYLOG("FLASH", "%03d P2P Preamble %d", index, g_lorawan_settings.p2p_preamble_len);
-	index += 1;
-	MYLOG("FLASH", "%03d P2P Timeout %d", index, g_lorawan_settings.p2p_symbol_timeout);
+
+	uint8_t *raw_data = (uint8_t *)&g_lorawan_settings.valid_mark_1;
+	MYLOG("FLASH", "Size %d", sizeof(s_lorawan_settings));
+	for (int idx = 0; idx < sizeof(s_lorawan_settings); idx++)
+	{
+		Serial.printf("%02X ", raw_data[idx]);
+	}
+	Serial.println("");
+	for (int idx = 0; idx < sizeof(s_lorawan_settings); idx++)
+	{
+		Serial.printf("%02d ", idx);
+	}
+	Serial.println("");
 }
